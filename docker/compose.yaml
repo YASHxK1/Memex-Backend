@@ -1,0 +1,30 @@
+services:
+  memex-backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: memex-backend:local
+    ports:
+      - "${MEMEX_PORT:-8000}:8000"
+    environment:
+      MEMEX_API_TOKEN: ${MEMEX_API_TOKEN:?Set MEMEX_API_TOKEN in your environment or docker/.env}
+      MEMEX_EMBED_MODEL: ${MEMEX_EMBED_MODEL:-Qwen/Qwen3-Embedding-0.6B}
+      MEMEX_DEVICE: ${MEMEX_DEVICE:-auto}
+      MEMEX_QDRANT_MODE: ${MEMEX_QDRANT_MODE:-embedded}
+      MEMEX_QDRANT_PATH: /data/qdrant
+      MEMEX_QDRANT_URL: ${MEMEX_QDRANT_URL:-http://qdrant:6333}
+      MEMEX_COLLECTION: ${MEMEX_COLLECTION:-memex}
+      MEMEX_CHUNK_TOKENS: ${MEMEX_CHUNK_TOKENS:-512}
+      MEMEX_CHUNK_OVERLAP: ${MEMEX_CHUNK_OVERLAP:-64}
+    volumes:
+      - memex-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+
+volumes:
+  memex-data:
