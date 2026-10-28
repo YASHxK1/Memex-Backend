@@ -70,3 +70,35 @@ def test_delete_and_reindex():
     assert store.sources() == [{"path": "notes.txt", "chunks": 1}]
     assert client.delete("/v1/documents", params={"path": "notes.txt"}, headers=auth()).json() == {"status": "deleted"}
     assert store.counts() == (0, 0)
+
+
+def test_memory_crud_search_auth_validation_and_document_separation():
+    client, _, store = client_and_fakes()
+    assert client.post("/v1/memories", json={"text": "secret"}).status_code == 401
+    assert client.post("/v1/memories", json={"text": ""}, headers=auth()).status_code == 422
+    created = client.post("/v1/memories", json={"text": "Remember this topic"}, headers=auth())
+    assert created.status_code == 201
+    memory = created.json()
+    memory_id = memory["id"]
+    assert client.get(f"/v1/memories/{memory_id}", headers=auth()).json() == memory
+    assert client.get("/v1/memories/not-a-uuid", headers=auth()).status_code == 422
+    assert client.get("/v1/memories/00000000-0000-0000-0000-000000000000", headers=auth()).status_code == 404
+
+    search = client.post("/v1/memories/search", json={"query": "topic"}, headers=auth())
+    assert search.status_code == 200
+    assert search.json()["results"][0]["id"] == memory_id
+    assert store.sources() == []
+    assert client.post("/v1/search", json={"query": "topic"}, headers=auth()).json()["results"] == []
+
+    updated = client.put(f"/v1/memories/{memory_id}", json={"text": "Updated content"}, headers=auth())
+    assert updated.status_code == 200
+    assert updated.json()["text"] == "Updated content"
+    assert updated.json()["created_at"] == memory["created_at"]
+    assert updated.json()["updated_at"] >= memory["updated_at"]
+    assert client.put("/v1/memories/00000000-0000-0000-0000-000000000000",
+                      json={"text": "x"}, headers=auth()).status_code == 404
+
+    assert client.post("/v1/reindex", headers=auth()).status_code == 200
+    assert client.get(f"/v1/memories/{memory_id}", headers=auth()).json()["text"] == "Updated content"
+    assert client.delete(f"/v1/memories/{memory_id}", headers=auth()).json() == {"status": "deleted"}
+    assert client.delete(f"/v1/memories/{memory_id}", headers=auth()).status_code == 404

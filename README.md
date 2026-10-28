@@ -74,6 +74,11 @@ All routes except `/health` require `Authorization: Bearer <token>`.
 | `DELETE` | `/v1/documents?path=...` | Delete a document and its vectors |
 | `GET` | `/v1/sources` | List indexed documents with chunk counts |
 | `POST` | `/v1/search` | Semantic search |
+| `POST` | `/v1/memories` | Create a memory |
+| `GET` | `/v1/memories/{id}` | Retrieve a memory |
+| `PUT` | `/v1/memories/{id}` | Replace memory text and embedding |
+| `DELETE` | `/v1/memories/{id}` | Delete a memory |
+| `POST` | `/v1/memories/search` | Semantic memory search |
 | `POST` | `/v1/reindex` | Rebuild the collection from stored content |
 
 ### Search
@@ -124,10 +129,12 @@ Environment variables (or `.env`):
 
 ## Data model
 
-Each Qdrant point holds one chunk:
+Document Qdrant points hold one chunk:
 
 - **Vector:** embedding (1024 dimensions for the 0.6B model), cosine distance
 - **Payload:** `path`, `heading`, `chunk_index`, `text`, `doc_hash`
+
+Memory points use a UUID ID, one embedding per memory, and a `kind: memory` payload with its text and timestamps. Memory operations and search are isolated from document routes.
 
 ## Chunking
 
@@ -162,7 +169,6 @@ Tests use a fake embedder and in-memory Qdrant so they run without downloading m
 
 - [ ] Reranker stage (Qwen3-Reranker)
 - [ ] Hybrid search (dense + keyword)
-- [ ] MCP server interface
 - [ ] PDF and code repo ingestion
 - [ ] Per-source collections and multi-user tokens
 

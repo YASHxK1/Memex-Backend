@@ -27,7 +27,10 @@ class VectorStore:
         while True:
             points, offset = self.client.scroll(
                 collection_name=self.collection,
-                scroll_filter=(models.Filter(must=[models.FieldCondition(key="path", match=models.MatchValue(value=path))]) if path else None),
+                scroll_filter=models.Filter(
+                    must=([models.FieldCondition(key="path", match=models.MatchValue(value=path))] if path else []),
+                    must_not=[models.FieldCondition(key="kind", match=models.MatchValue(value="memory"))],
+                ),
                 limit=256,
                 offset=offset,
                 with_payload=True,
@@ -82,6 +85,9 @@ class VectorStore:
         hits = self.client.query_points(
             collection_name=self.collection,
             query=vector,
+            query_filter=models.Filter(must_not=[
+                models.FieldCondition(key="kind", match=models.MatchValue(value="memory")),
+            ]),
             limit=top_k,
             score_threshold=min_score,
             with_payload=True,
@@ -96,6 +102,88 @@ class VectorStore:
             }
             for hit in hits
         ]
+
+    def add_memory(self, memory_id: str, text: str, vector: list[float], created_at: str,
+                   updated_at: str | None = None) -> None:
+        updated_at = updated_at or created_at
+        self.client.upsert(
+            collection_name=self.collection,
+            points=[models.PointStruct(
+                id=memory_id,
+                vector=vector,
+                payload={"kind": "memory", "memory_id": memory_id, "text": text,
+                         "created_at": created_at, "updated_at": updated_at},
+            )],
+            wait=True,
+        )
+
+    def get_memory(self, memory_id: str) -> dict | None:
+        points = self.client.retrieve(
+            collection_name=self.collection, ids=[memory_id], with_payload=True, with_vectors=False,
+        )
+        if not points or points[0].payload.get("kind") != "memory":
+            return None
+        payload = points[0].payload
+        return {"id": payload["memory_id"], "text": payload["text"],
+                "created_at": payload["created_at"], "updated_at": payload["updated_at"]}
+
+    def update_memory(self, memory_id: str, text: str, vector: list[float], timestamp: str) -> dict | None:
+        existing = self.get_memory(memory_id)
+        if existing is None:
+            return None
+        self.client.upsert(
+            collection_name=self.collection,
+            points=[models.PointStruct(
+                id=memory_id,
+                vector=vector,
+                payload={"kind": "memory", "memory_id": memory_id, "text": text,
+                         "created_at": existing["created_at"], "updated_at": timestamp},
+            )],
+            wait=True,
+        )
+        return {**existing, "text": text, "updated_at": timestamp}
+
+    def delete_memory(self, memory_id: str) -> bool:
+        if self.get_memory(memory_id) is None:
+            return False
+        self.client.delete(
+            collection_name=self.collection,
+            points_selector=models.PointIdsList(points=[memory_id]),
+            wait=True,
+        )
+        return True
+
+    def memories(self) -> list[dict]:
+        offset = None
+        found = []
+        memory_filter = models.Filter(must=[
+            models.FieldCondition(key="kind", match=models.MatchValue(value="memory")),
+        ])
+        while True:
+            points, offset = self.client.scroll(
+                collection_name=self.collection, scroll_filter=memory_filter, limit=256,
+                offset=offset, with_payload=True, with_vectors=False,
+            )
+            for point in points:
+                payload = point.payload
+                found.append({"id": payload["memory_id"], "text": payload["text"],
+                              "created_at": payload["created_at"], "updated_at": payload["updated_at"]})
+            if offset is None:
+                break
+        return found
+
+    def search_memories(self, vector: list[float], top_k: int, min_score: float) -> list[dict]:
+        hits = self.client.query_points(
+            collection_name=self.collection,
+            query=vector,
+            query_filter=models.Filter(must=[
+                models.FieldCondition(key="kind", match=models.MatchValue(value="memory")),
+            ]),
+            limit=top_k,
+            score_threshold=min_score,
+            with_payload=True,
+        ).points
+        return [{"id": hit.payload["memory_id"], "text": hit.payload["text"], "score": hit.score} for hit in hits]
 
     def documents(self) -> list[tuple[str, str, str]]:
         found: dict[str, tuple[str, str]] = {}

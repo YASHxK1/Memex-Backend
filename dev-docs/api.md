@@ -114,6 +114,14 @@ Response:
 
 An empty result set is returned when no points meet the threshold.
 
+### Memory endpoints
+
+Memories are single semantic records stored separately from indexed document chunks. All routes below require the same Bearer token as other `/v1/*` routes.
+
+`POST /v1/memories` creates a memory from `{"text":"..."}` and returns its UUID, text, and UTC `created_at` / `updated_at` timestamps. `GET /v1/memories/{id}` retrieves it. `PUT /v1/memories/{id}` replaces its text and refreshes its embedding while preserving its ID and creation time. `DELETE /v1/memories/{id}` deletes it. Missing IDs return `404`; malformed UUIDs and invalid or empty text return `422`.
+
+`POST /v1/memories/search` accepts the same `query`, `top_k`, and `min_score` fields as document search and returns matching memory IDs, text, and scores. Memory search and document search are isolated from one another. Reindexing preserves memories and re-embeds them with the active model.
+
 ### `POST /v1/reindex`
 
 Rebuilds the configured collection using stored document content, the currently configured embedding model, and current chunking settings. This is required after changing embedding models and is also how chunking setting changes are applied to existing documents.

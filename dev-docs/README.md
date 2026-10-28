@@ -12,6 +12,6 @@ This folder is the engineering guide for the self-hosted Memex semantic search s
 
 ## Service at a glance
 
-The service accepts Markdown or text documents, splits them into chunks, embeds chunks with Sentence Transformers, and stores vectors and payloads in Qdrant. Search embeds a query and returns the closest matching chunks. All `/v1/*` routes require a configured Bearer token; `/health` is public.
+The service accepts Markdown or text documents, splits them into chunks, embeds chunks with Sentence Transformers, and stores vectors and payloads in Qdrant. It also stores individual memories with semantic embeddings and CRUD endpoints. Document and memory search are separate. All `/v1/*` routes require a configured Bearer token; `/health` is public.
 
-The supported first release is single-user and has one Qdrant collection. PDF/repository ingestion, keyword search, reranking, MCP, and per-user isolation are roadmap work, not current behavior.
+The supported first release is single-user and has one Qdrant collection. PDF/repository ingestion, keyword search, reranking, and per-user isolation are roadmap work, not current behavior. The separate Memex-MCP repository provides a local stdio MCP server over the memory API.

@@ -30,6 +30,33 @@ class SearchOut(BaseModel):
     results: list[SearchResult]
 
 
+class MemoryIn(BaseModel):
+    text: str = Field(min_length=1)
+
+
+class MemoryOut(BaseModel):
+    id: str
+    text: str
+    created_at: str
+    updated_at: str
+
+
+class MemorySearchIn(BaseModel):
+    query: str = Field(min_length=1)
+    top_k: int = Field(default=5, ge=1, le=100)
+    min_score: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+class MemorySearchResult(BaseModel):
+    id: str
+    text: str
+    score: float
+
+
+class MemorySearchOut(BaseModel):
+    results: list[MemorySearchResult]
+
+
 class Source(BaseModel):
     path: str
     chunks: int

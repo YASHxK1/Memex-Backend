@@ -2,7 +2,7 @@
 
 ## Qdrant collection
 
-Each Qdrant point represents one chunk. The collection uses cosine distance and is created with the embedding dimension reported by the configured model.
+Document points each represent one chunk. Memory points each represent one complete memory with a single embedding. Both use the same cosine-distance collection and configured embedding dimension.
 
 | Payload field | Purpose |
 |---|---|
@@ -14,6 +14,8 @@ Each Qdrant point represents one chunk. The collection uses cosine distance and 
 | `document_content` | Original document body, retained to support reindexing. |
 
 Point IDs are deterministic UUIDv5 values derived from the path and chunk index. Replacing a document deletes the existing points for that path before upserting its new points.
+
+Memory point IDs are stable UUIDs. Their payload has `kind: memory`, `memory_id`, `text`, `created_at`, and `updated_at`. Document queries exclude memory points, and memory queries filter to them. Reindex snapshots both record types and re-embeds them after rebuilding the collection.
 
 The original document content is currently repeated in every point payload for that document. This keeps reindexing possible using Qdrant alone, at the cost of increased storage proportional to the number of chunks. A future storage optimization could move source bodies to a separate document store, but would need to preserve reindex behavior.
 

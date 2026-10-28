@@ -10,7 +10,7 @@
 | `memex_backend/schemas.py` | Defines request and response validation with Pydantic. |
 | `memex_backend/chunker.py` | Splits Markdown sections or text paragraphs into overlapping chunks. |
 | `memex_backend/embedder.py` | Lazily loads the configured Sentence Transformers model and produces vectors. |
-| `memex_backend/store.py` | Maps documents and chunks to Qdrant points and implements search and collection operations. |
+| `memex_backend/store.py` | Maps documents, chunks, and memories to Qdrant points and implements search and collection operations. |
 
 FastAPI lifespan initialization loads settings, constructs the embedder, asks it for the vector dimension, and opens or creates the Qdrant collection. The model is loaded lazily by Sentence Transformers when its dimension or embeddings are first requested. For normal service startup, collection initialization therefore requires model availability.
 
@@ -34,6 +34,10 @@ The submitted hash is trusted as the document version identifier; the backend do
 4. The API returns score, source path, heading, chunk index, and chunk text for each hit.
 
 The same configured model must be used for document and query vectors. If the embedding model changes, call `POST /v1/reindex` after configuring the new model.
+
+## Memory flow
+
+Memory create embeds the full text and writes one UUID-addressed point with timestamps. Get, update, and delete operate by UUID; update preserves the ID and creation timestamp and refreshes the vector. Memory search filters to memory points, while document search excludes them. Collection reindex restores both documents and memories.
 
 ## Runtime boundaries
 
